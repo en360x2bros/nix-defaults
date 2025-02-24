@@ -12,6 +12,7 @@
       locale = import ./defaults/locale.nix;
       mgmt = import ./defaults/mgmt.nix;
       packages = import ./defaults/packages.nix;
+      rclone = import ./defaults/rclone.nix;
       timezone = import ./defaults/timezone.nix;
     };
   };
