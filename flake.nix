@@ -11,6 +11,7 @@
       dns = import ./defaults/dns.nix;
       incus = import ./defaults/incus.nix;
       locale = import ./defaults/locale.nix;
+      maintenance = import ./defaults/maintenance.nix;
       mgmt = import ./defaults/mgmt.nix;
       ntp = import ./defaults/ntp.nix;
       packages = import ./defaults/packages.nix;
