@@ -7,9 +7,11 @@
 
   outputs = { self, nixpkgs }: {
     nixosModules = {
-      mgmt = import ./defaults/mgmt.nix;
       dns = import ./defaults/dns.nix;
+      locale = import ./defaults/locale.nix;
+      mgmt = import ./defaults/mgmt.nix;
       packages = import ./defaults/packages.nix;
+      timezone = import ./defaults/timezone.nix;
     };
   };
 }
