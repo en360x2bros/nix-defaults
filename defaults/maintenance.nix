@@ -2,7 +2,7 @@
 
 {
   config = {
-    settings = {
+    nix.settings = {
       auto-optimise-store = true; # Automatically optimise the Nix store
     };
 
