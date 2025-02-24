@@ -11,9 +11,11 @@
       incus = import ./defaults/incus.nix;
       locale = import ./defaults/locale.nix;
       mgmt = import ./defaults/mgmt.nix;
+      ntp = import ./defaults/ntp.nix;
       packages = import ./defaults/packages.nix;
       rclone = import ./defaults/rclone.nix;
       timezone = import ./defaults/timezone.nix;
+      updates = import ./defaults/updates.nix;
     };
   };
 }
