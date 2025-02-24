@@ -7,6 +7,7 @@
 
   outputs = { self, nixpkgs }: {
     nixosModules = {
+      autoupgrades = import ./defaults/autoupgrades.nix;
       dns = import ./defaults/dns.nix;
       incus = import ./defaults/incus.nix;
       locale = import ./defaults/locale.nix;
@@ -15,7 +16,6 @@
       packages = import ./defaults/packages.nix;
       rclone = import ./defaults/rclone.nix;
       timezone = import ./defaults/timezone.nix;
-      updates = import ./defaults/updates.nix;
     };
   };
 }
