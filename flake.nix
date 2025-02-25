@@ -17,6 +17,8 @@
       packages = import ./defaults/packages.nix;
       rclone = import ./defaults/rclone.nix;
       timezone = import ./defaults/timezone.nix;
+      boot-systemd = import ./defaults/boot-systemd.nix;
+      boot-grub = import ./defaults/boot-grub.nix;
     };
   };
 }
