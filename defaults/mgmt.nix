@@ -1,4 +1,9 @@
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 
 let
   # Help function for options
@@ -8,7 +13,7 @@ in
   # Define the option `mgmt.sshKeys`
   options.mgmt.sshKeys = mkOption {
     type = types.listOf types.str;
-    default = [];
+    default = [ ];
     description = "List of SSH keys for the mgmt user.";
   };
 
@@ -30,6 +35,15 @@ in
       settings = {
         PasswordAuthentication = false;
         PermitRootLogin = "no";
+      };
+    };
+
+    # fail2ban for more security
+    services.fail2ban = {
+      enable = true;
+      jails.sshd.settings = {
+        mode = "aggressive";
+        publickey = "invalid";
       };
     };
   };
