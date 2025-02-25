@@ -22,6 +22,7 @@
         ntp = import ./defaults/ntp.nix;
         packages = import ./defaults/packages.nix;
         rclone = import ./defaults/rclone.nix;
+        swap = import ./defaults/swap.nix;
         timezone = import ./defaults/timezone.nix;
       };
     };
