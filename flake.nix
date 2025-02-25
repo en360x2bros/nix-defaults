@@ -8,6 +8,7 @@
   outputs = { self, nixpkgs }: {
     nixosModules = {
       autoupgrades = import ./defaults/autoupgrades.nix;
+      boot-initrd = import ./defaults/boot-initrd.nix;
       dns = import ./defaults/dns.nix;
       incus = import ./defaults/incus.nix;
       locale = import ./defaults/locale.nix;
