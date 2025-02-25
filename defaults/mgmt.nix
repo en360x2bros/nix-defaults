@@ -42,7 +42,7 @@ in
     services.fail2ban = {
       enable = true;
       jails.sshd.settings = {
-        mode = "aggressive";
+        mode = "normal";
         publickey = "invalid";
       };
     };
