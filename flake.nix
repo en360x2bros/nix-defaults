@@ -1,5 +1,5 @@
 {
-  description = "Shared NixOS Defaults of en360x2bros";
+  description = "Shared NixOS Defaults of encircle360 GmbH and 2Bros Digital Group GmbH (short: en360x2bros)";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
