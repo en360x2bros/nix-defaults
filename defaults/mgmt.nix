@@ -28,6 +28,8 @@ in
 
   # Use the option in the configuration
   config = {
+    console.keyMap = "de";
+
     users.mutableUsers = false;
 
     users.users.mgmt = {
