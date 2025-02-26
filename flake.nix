@@ -19,6 +19,7 @@
         logrotate = import ./defaults/logrotate.nix;
         maintenance = import ./defaults/maintenance.nix;
         mgmt = import ./defaults/mgmt.nix;
+        motd = import ./defaults/motd.nix;
         ntp = import ./defaults/ntp.nix;
         packages = import ./defaults/packages.nix;
         rclone = import ./defaults/rclone.nix;
