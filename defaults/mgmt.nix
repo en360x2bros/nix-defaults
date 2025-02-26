@@ -13,17 +13,29 @@ in
   # Define the option `mgmt.sshKeys`
   options.mgmt.sshKeys = mkOption {
     type = types.listOf types.str;
-    default = [ ];
+    default = [];
     description = "List of SSH keys for the mgmt user.";
+  };
+
+  # Define the option `mgmt.passwordFile`
+  options.mgmt.passwordFile = mkOption {
+    type = types.path;
+    description = ''
+      Path to the encrypted password file for the mgmt user. 
+      This option must be set when using the mgmt module.
+    '';
   };
 
   # Use the option in the configuration
   config = {
+    users.mutableUsers = false;
+
     users.users.mgmt = {
       isNormalUser = true;
       home = "/home/mgmt";
       description = "mgmt User";
       openssh.authorizedKeys.keys = config.mgmt.sshKeys;
+      hashedPasswordFile = config.mgmt.passwordFile;
       extraGroups = [ "wheel" ];
       shell = pkgs.bash;
     };
