@@ -16,7 +16,7 @@
       git
       fail2ban
       htop
-      neofetch
+      fastfetch
       zenith
       wget
       traceroute
