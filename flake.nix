@@ -26,6 +26,7 @@
         rclone = import ./defaults/rclone.nix;
         swap = import ./defaults/swap.nix;
         timezone = import ./defaults/timezone.nix;
+        zfs-maintenance = import ./defaults/zfs-maintenance.nix;
       };
     };
 }
