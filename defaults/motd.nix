@@ -33,9 +33,6 @@
         {
             "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
             "display": {
-                "key": {
-                  "width": 15
-                },
                 "bar": {
                   "charElapsed": "=",
                   "charTotal": "-",
@@ -52,10 +49,10 @@
                 { "type": "datetime" },
                 { "type": "cpu", "key": "CPU", "showPeCoreCount": true, "temp": true },
                 { "type": "cpuusage" },
-                { "type": "separator" },
+                { "type": "break" },
                 { "type": "physicalmemory", "key": "RAM" },
                 { "type": "memory", "key": "RAM Usage" },
-                { "type": "separator" },
+                { "type": "break" },
                 { "type": "disk", "folders": "/" },
                 { "type": "btrfs" },
                 { "type": "zpool" },
