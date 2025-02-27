@@ -10,7 +10,8 @@
     {
       nixosModules = {
         autoupgrades = import ./defaults/autoupgrades.nix;
-        boot-initrd = import ./defaults/boot-initrd.nix;
+        boot-initrd-sshd = import ./defaults/boot-initrd-sshd.nix;
+        boot-zfs-encrypted-root = import ./defaults/boot-zfs-encrypted-root.nix;
         boot-grub = import ./defaults/boot-grub.nix;
         boot-systemd = import ./defaults/boot-systemd.nix;
         dns = import ./defaults/dns.nix;
