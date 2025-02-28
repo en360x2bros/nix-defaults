@@ -1,9 +1,11 @@
-{ lib, pkgs, ... }:
+{ lib, pkgs, config, ... }:
 {
-  services.zfs.autoScrub.enable = lib.mkDefault true;
-  services.zfs.trim.enable = lib.mkDefault true;
+  config = {
+    services.zfs.autoScrub.enable = lib.mkDefault true;
+    services.zfs.trim.enable = lib.mkDefault true;
 
-  environment.systemPackages = with pkgs; [
-    zfs
-  ];
+    environment.systemPackages = with pkgs; [
+      zfs
+    ];
+  };
 }
