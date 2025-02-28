@@ -27,6 +27,7 @@
         swap = import ./defaults/swap.nix;
         timezone = import ./defaults/timezone.nix;
         zfs-maintenance = import ./defaults/zfs-maintenance.nix;
+        hw-packages = import ./defaults/hw-packages.nix;
       };
     };
 }
