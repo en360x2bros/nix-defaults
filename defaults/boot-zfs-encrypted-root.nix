@@ -16,6 +16,10 @@
       zpool import -a
       # Add the load-key command to the .profile
       echo "#!/bin/sh" > /bin/askpass-zfs
+      echo "echo \"Press CTRL+C to enter shell...\"" >> /bin/askpass-zfs
+      echo "trap '/bin/ash; exit' INT" >> /bin/askpass-zfs
+      echo "sleep 3" >> /bin/askpass-zfs
+      echo "trap - INT" >> /bin/askpass-zfs
       echo "zfs load-key -a; killall zfs" >> /bin/askpass-zfs
       chmod +x /bin/askpass-zfs
     '';
