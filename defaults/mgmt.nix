@@ -13,7 +13,7 @@ in
   # Define the option `mgmt.sshKeys`
   options.mgmt.sshKeys = mkOption {
     type = types.listOf types.str;
-    default = [];
+    default = [ ];
     description = "List of SSH keys for the mgmt user.";
   };
 
@@ -55,10 +55,13 @@ in
     # fail2ban for more security
     services.fail2ban = {
       enable = true;
-      jails.sshd.settings = {
-        mode = "normal";
-        publickey = "invalid";
-      };
+      maxretry = 5;
+      ignoreIP = [
+        "100.64.0.0/16"
+        "10.0.0.0/8"
+        "192.168.0.0/16"
+      ];
+      bantime = "6h";
     };
   };
 }
