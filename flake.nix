@@ -15,6 +15,7 @@
         boot-grub = import ./defaults/boot-grub.nix;
         boot-systemd = import ./defaults/boot-systemd.nix;
         dns = import ./defaults/dns.nix;
+        docker = import ./defaults/docker.nix;
         incus = import ./defaults/incus.nix;
         locale = import ./defaults/locale.nix;
         logrotate = import ./defaults/logrotate.nix;
@@ -23,6 +24,7 @@
         motd = import ./defaults/motd.nix;
         ntp = import ./defaults/ntp.nix;
         packages = import ./defaults/packages.nix;
+        postman = import ./defaults/postman.nix;
         rclone = import ./defaults/rclone.nix;
         swap = import ./defaults/swap.nix;
         timezone = import ./defaults/timezone.nix;
