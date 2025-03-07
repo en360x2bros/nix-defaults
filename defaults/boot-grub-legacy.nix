@@ -1,4 +1,4 @@
-# use with EFI
+# use with legacy BIOS
 { ... }:
 {
   config = {
@@ -6,8 +6,8 @@
       loader = {
         grub = {
           enable = true;
-          efiSupport = true;
-          efiInstallAsRemovable = true;
+          efiSupport = false;
+          efiInstallAsRemovable = false;
         };
       };
     };
