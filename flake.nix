@@ -11,6 +11,7 @@
       nixosModules = {
         autoupgrades = import ./defaults/autoupgrades.nix;
         boot-grub = import ./defaults/boot-grub.nix;
+        boot-grub-legacy = import ./defaults/boot-grub-legacy.nix;
         boot-initrd-sshd = import ./defaults/boot-initrd-sshd.nix;
         boot-luks-encrypted-root = import ./defaults/boot-luks-encrypted-root.nix;
         boot-systemd = import ./defaults/boot-systemd.nix;
