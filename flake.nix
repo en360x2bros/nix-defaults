@@ -25,9 +25,13 @@
         mgmt = import ./defaults/mgmt.nix;
         motd = import ./defaults/motd.nix;
         ntp = import ./defaults/ntp.nix;
+        oci-authentik = import ./defaults/oci-authentik.nix;
         oci-caddy-docker-proxy = import ./defaults/oci-caddy-docker-proxy.nix;
         oci-hcloud-snapshot-as-backup = import ./defaults/oci-hcloud-snapshot-as-backup.nix;
         oci-headscale = import ./defaults/oci-headscale.nix;
+        oci-headscale-admin = import ./defaults/oci-headscale-admin.nix;
+        oci-headscale-headplane = import ./defaults/oci-headscale-headplane.nix;
+        oci-vaultwarden = import ./defaults/oci-vaultwarden.nix;
         packages = import ./defaults/packages.nix;
         podman = import ./defaults/podman.nix;
         rclone = import ./defaults/rclone.nix;
