@@ -22,6 +22,7 @@
       traceroute
       mtr
       dig
+      jq
       rsync
       screen
       lsof
