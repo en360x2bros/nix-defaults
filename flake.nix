@@ -36,6 +36,7 @@
         podman = import ./defaults/podman.nix;
         rclone = import ./defaults/rclone.nix;
         swap = import ./defaults/swap.nix;
+        tailscale-extra-hosts = import ./defaults/tailscale-extra-hosts.nix;
         timezone = import ./defaults/timezone.nix;
         zfs-maintenance = import ./defaults/zfs-maintenance.nix;
         hw-packages = import ./defaults/hw-packages.nix;
