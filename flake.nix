@@ -31,6 +31,7 @@
         oci-headscale = import ./defaults/oci-headscale.nix;
         oci-headscale-admin = import ./defaults/oci-headscale-admin.nix;
         oci-headscale-headplane = import ./defaults/oci-headscale-headplane.nix;
+        oci-nextcloud-aio = import ./defaults/oci-nextcloud-aio.nix;
         oci-vaultwarden = import ./defaults/oci-vaultwarden.nix;
         packages = import ./defaults/packages.nix;
         podman = import ./defaults/podman.nix;

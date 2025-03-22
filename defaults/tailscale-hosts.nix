@@ -40,7 +40,7 @@ let
     }
 
     fetch_tailscale_status() {
-      ${pkgs.tailscale}/bin/tailscale status --self=false --json > "$JSON_TMP" 2>/dev/null
+      ${pkgs.tailscale}/bin/tailscale status --json > "$JSON_TMP" 2>/dev/null
       debug "Raw JSON saved to $JSON_TMP"
     }
 
@@ -95,21 +95,36 @@ let
       debug "Combined results: $(cat "$TMP_FINAL")"
     }
 
-    update_hosts_file() {
-      if [ -s "$TMP_FINAL" ]; then
-        {
-          echo "# Hosts managed by NixOS configuration"
-          cat "$BASE_HOSTS"
-          echo "# Tailscale hosts"
-          cat "$TMP_FINAL"
-        } > "$FINAL_HOSTS.tmp"
-        mv "$FINAL_HOSTS.tmp" "$FINAL_HOSTS"
-        chmod 644 "$FINAL_HOSTS"
-        debug "Updated $FINAL_HOSTS with Tailscale entries"
-      else
-        debug "No Tailscale entries found, skipping update"
-      fi
-    }
+  update_hosts_file() {
+    # Hole die eigene Tailscale-IP
+    SELF_IP=$(${pkgs.tailscale}/bin/tailscale ip --4)
+    SELF_HOST=${config.networking.hostName}${cfg.suffix}
+
+    if [ -n "$SELF_IP" ] && [ -s "$TMP_FINAL" ]; then
+      {
+        echo "# Hosts managed by NixOS configuration"
+        cat "$BASE_HOSTS"
+        echo "# Tailscale hosts"
+        echo "$SELF_IP $SELF_HOST # Local Tailscale host"
+        cat "$TMP_FINAL"
+      } > "$FINAL_HOSTS.tmp"
+      mv "$FINAL_HOSTS.tmp" "$FINAL_HOSTS"
+      chmod 644 "$FINAL_HOSTS"
+      debug "Updated $FINAL_HOSTS with Tailscale entries including self ($SELF_IP $SELF_HOST)"
+    elif [ -n "$SELF_IP" ]; then
+      {
+        echo "# Hosts managed by NixOS configuration"
+        cat "$BASE_HOSTS"
+        echo "# Tailscale hosts"
+        echo "$SELF_IP $SELF_HOST # Local Tailscale host"
+      } > "$FINAL_HOSTS.tmp"
+      mv "$FINAL_HOSTS.tmp" "$FINAL_HOSTS"
+      chmod 644 "$FINAL_HOSTS"
+      debug "Updated $FINAL_HOSTS with only self ($SELF_IP $SELF_HOST)"
+    else
+      debug "No Tailscale entries found and no self IP, skipping update"
+    fi
+  }
 
     # Main execution
     trap cleanup EXIT
