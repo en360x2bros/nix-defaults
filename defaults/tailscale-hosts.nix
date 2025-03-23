@@ -1,4 +1,9 @@
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 
 let
   cfg = config.tailscaleHosts;
@@ -168,13 +173,13 @@ in
   options.tailscaleHosts = {
     users = lib.mkOption {
       type = with lib.types; listOf str;
-      default = [];
+      default = [ ];
       description = "List of Tailscale users to include in /etc/hosts. If empty and tags is empty, all hosts are included.";
     };
 
     tags = lib.mkOption {
       type = with lib.types; listOf str;
-      default = [];
+      default = [ ];
       description = "List of Tailscale tags to include in /etc/hosts. Combined with users using AND logic if both are specified.";
     };
 
@@ -215,31 +220,44 @@ in
       };
     };
 
-    systemd.services = {
-      tailscale-hosts = {
-        enable = true;
-        description = "Update /etc/hosts with Tailscale nodes";
-        after = [ "tailscaled.service" "network-online.target" ];
-        wants = [ "tailscaled.service" ];
-        wantedBy = [ "multi-user.target" ];
-        unitConfig = {
-          # Start-Limit-Einstellungen gehören in [Unit]
-          StartLimitIntervalSec = "300"; # 5 Minuten
-          StartLimitBurst = "5";         # Max 5 Versuche in 5 Minuten
+    systemd.services =
+      {
+        tailscale-hosts = {
+          enable = true;
+          description = "Update /etc/hosts with Tailscale nodes";
+          after = [
+            "tailscaled.service"
+            "network-online.target"
+          ];
+          wants = [ "tailscaled.service" ];
+          wantedBy = [ "multi-user.target" ];
+          unitConfig = {
+            StartLimitIntervalSec = "300";
+            StartLimitBurst = "5";
+          };
+          serviceConfig = {
+            Type = "oneshot";
+            ExecStart = "${updateTailscaleHosts}";
+            Restart = "on-failure";
+            RestartSec = "5s";
+            TimeoutStopSec = "5s";
+          };
         };
-        serviceConfig = {
-          Type = "oneshot";
-          ExecStart = "${updateTailscaleHosts}";
-          Restart = "on-failure";
-          RestartSec = "5s";
-          TimeoutStopSec = "5s";         # Schnelles Stoppen erzwingen
+      }
+      // (lib.optionalAttrs config.virtualisation.incus.enable {
+        incus = {
+          after = [
+            "tailscaled.service"
+            "tailscale-hosts.service"
+          ];
+          requires = [
+            "tailscaled.service"
+            "tailscale-hosts.service"
+          ];
+          serviceConfig = {
+            ExecStartPre = "${pkgs.coreutils}/bin/sleep 15";
+          };
         };
-      };
-    } // (lib.optionalAttrs config.virtualisation.incus.enable {
-      incus = {
-        after = [ "tailscaled.service" "tailscale-hosts.service" ];
-        requires = [ "tailscaled.service" "tailscale-hosts.service" ];
-      };
-    });
+      });
   };
 }
