@@ -37,6 +37,8 @@
       eza
       speedtest-go
       ookla-speedtest
+      iperf
+      fio
     ];
   };
 }
