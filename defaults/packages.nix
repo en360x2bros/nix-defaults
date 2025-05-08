@@ -39,6 +39,7 @@
       ookla-speedtest
       iperf
       fio
+      geekbench
     ];
   };
 }
