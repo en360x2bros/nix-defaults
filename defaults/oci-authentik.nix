@@ -49,7 +49,7 @@
       };
 
       authentik-server = {
-        image = "ghcr.io/goauthentik/server:2025.2.2";
+        image = "ghcr.io/goauthentik/server:2025.4.1";
         autoStart = true;
         cmd = [ "server" ];
         volumes = [
@@ -61,7 +61,7 @@
       };
 
       authentik-worker = {
-        image = "ghcr.io/goauthentik/server:2025.2.2";
+        image = "ghcr.io/goauthentik/server:2025.4.1";
         autoStart = true;
         cmd = [ "worker" ];
         volumes = [
