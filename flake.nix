@@ -40,6 +40,7 @@
         tailscale-hosts = import ./defaults/tailscale-hosts.nix;
         timezone = import ./defaults/timezone.nix;
         zfs-maintenance = import ./defaults/zfs-maintenance.nix;
+        zfs-zed-notify = import ./defaults/zfs-zed-notify.nix;
         hw-packages = import ./defaults/hw-packages.nix;
       };
     };
