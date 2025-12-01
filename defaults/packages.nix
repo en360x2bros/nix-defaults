@@ -40,6 +40,7 @@
       iperf
       fio
       geekbench
+      tcpdump
     ];
   };
 }
