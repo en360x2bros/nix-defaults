@@ -8,7 +8,7 @@
 {
   config = {
     virtualisation.oci-containers.containers."headscale-headplane" = {
-      image = lib.mkDefault "ghcr.io/tale/headplane:0.6.0";
+      image = lib.mkDefault "ghcr.io/tale/headplane:0.6.1";
       autoStart = true;
     };
   };
