@@ -28,7 +28,6 @@
         oci-authentik = import ./defaults/oci-authentik.nix;
         oci-caddy-docker-proxy = import ./defaults/oci-caddy-docker-proxy.nix;
         oci-hcloud-snapshot-as-backup = import ./defaults/oci-hcloud-snapshot-as-backup.nix;
-        oci-headscale = import ./defaults/oci-headscale.nix;
         oci-headscale-admin = import ./defaults/oci-headscale-admin.nix;
         oci-headscale-headplane = import ./defaults/oci-headscale-headplane.nix;
         oci-nextcloud-aio = import ./defaults/oci-nextcloud-aio.nix;
