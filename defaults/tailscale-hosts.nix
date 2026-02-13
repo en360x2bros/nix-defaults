@@ -8,169 +8,175 @@
 let
   cfg = config.tailscaleHosts;
 
-  updateTailscaleHosts = pkgs.writeShellScript "update-tailscale-hosts" ''
-    set -e  # Beendet das Skript bei Fehlern sofort
+  updateTailscaleHosts = pkgs.writeShellApplication {
+    name = "update-tailscale-hosts";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.jq
+      pkgs.tailscale
+    ];
+    text = ''
+      set -euo pipefail
 
-    # Configuration variables
-    DEBUG=${if cfg.debug then "true" else "false"}
-    BASE_HOSTS="/etc/static/hosts"
-    FINAL_HOSTS="/etc/hosts"
-    JSON_TMP="/tmp/tailscale-status-$(date +%s).json"
+      DEBUG=${if cfg.debug then "true" else "false"}
+      BASE_HOSTS="/etc/static/hosts"
+      FINAL_HOSTS="/etc/hosts"
+      SUFFIX='${cfg.suffix}'
+      SELF_HOST='${config.networking.hostName}${cfg.suffix}'
+      USERS_JSON='${builtins.toJSON cfg.users}'
+      TAGS_JSON='${builtins.toJSON (map (tag: "tag:${tag}") cfg.tags)}'
 
-    # Temporary files
-    TMP_USERS=$(mktemp)
-    TMP_TAGS=$(mktemp)
-    TMP_FINAL=$(mktemp)
+      STATUS_JSON="$(mktemp)"
+      TMP_USERS="$(mktemp)"
+      TMP_TAGS="$(mktemp)"
+      TMP_FINAL="$(mktemp)"
 
-    # Utility functions
-    debug() {
-      if [ "$DEBUG" = "true" ]; then
-        echo "DEBUG: $1" >&2
-      fi
-    }
-
-    cleanup() {
-      rm -f "$TMP_USERS" "$TMP_TAGS" "$TMP_FINAL"
-      [ "$DEBUG" = "false" ] && rm -f "$JSON_TMP"
-    }
-
-    wait_for_tailscale() {
-      for i in {1..20}; do
-        if ${pkgs.tailscale}/bin/tailscale ip --4 >/dev/null 2>&1; then
-          SELF_IP=$(${pkgs.tailscale}/bin/tailscale ip --4)
-          debug "Tailscale is ready, IP: $SELF_IP"
-          return 0
+      debug() {
+        if [ "$DEBUG" = "true" ]; then
+          printf 'DEBUG: %s\n' "$1" >&2
         fi
-        debug "Waiting for Tailscale... ($i/20)"
-        sleep 1
-      done
-      echo "ERROR: Tailscale not ready after 20 attempts" >&2
-      exit 1
-    }
-
-    fetch_tailscale_status() {
-      if ! ${pkgs.tailscale}/bin/tailscale status --json > "$JSON_TMP" 2>/dev/null; then
-        echo "ERROR: Failed to fetch Tailscale status" >&2
-        exit 1
-      fi
-      if [ ! -s "$JSON_TMP" ]; then
-        echo "ERROR: Tailscale status JSON is empty" >&2
-        exit 1
-      fi
-      debug "Raw JSON saved to $JSON_TMP"
-    }
-
-    filter_by_users() {
-      ${
-        if builtins.length cfg.users == 0 then
-          "echo '' > \"$TMP_USERS\""
-        else
-          ''
-            ${pkgs.jq}/bin/jq -r '
-              .User as $users |
-              .Peer | to_entries[] |
-              select(.value.UserID as $uid | $users[$uid | tostring].LoginName | IN(${
-                builtins.concatStringsSep "," (map (x: "\"${x}\"") cfg.users)
-              })) |
-              "\(.value.TailscaleIPs[0]) \(.value.HostName)${cfg.suffix}"
-            ' "$JSON_TMP" > "$TMP_USERS" || {
-              echo "ERROR: jq failed to filter users" >&2
-              cat "$JSON_TMP" >&2
-              exit 1
-            }
-            debug "Users filter applied: $(cat "$TMP_USERS")"
-          ''
       }
-    }
 
-    filter_by_tags() {
-      ${
-        if builtins.length cfg.tags == 0 then
-          "echo '' > \"$TMP_TAGS\""
-        else
-          ''
-            ${pkgs.jq}/bin/jq -r '
-              .Peer | to_entries[] |
-              select(.value.Tags // [] | any(IN(${
-                builtins.concatStringsSep "," (map (x: "\"tag:${x}\"") cfg.tags)
-              }))) |
-              "\(.value.TailscaleIPs[0]) \(.value.HostName)${cfg.suffix}"
-            ' "$JSON_TMP" > "$TMP_TAGS" || {
-              echo "ERROR: jq failed to filter tags" >&2
-              cat "$JSON_TMP" >&2
-              exit 1
-            }
-            debug "Tags filter applied: $(cat "$TMP_TAGS")"
-          ''
+      cleanup() {
+        rm -f "$TMP_USERS" "$TMP_TAGS" "$TMP_FINAL"
+        if [ "$DEBUG" = "false" ]; then
+          rm -f "$STATUS_JSON"
+        fi
       }
-    }
 
-    combine_results() {
-      if [ -z "$(cat "$TMP_USERS")" ] && [ -z "$(cat "$TMP_TAGS")" ]; then
-        ${pkgs.jq}/bin/jq -r '
-          .Peer | to_entries[] |
-          "\(.value.TailscaleIPs[0]) \(.value.HostName)${cfg.suffix}"
-        ' "$JSON_TMP" > "$TMP_FINAL" || {
-          echo "ERROR: jq failed to process all peers" >&2
-          cat "$JSON_TMP" >&2
+      wait_for_tailscale() {
+        for i in $(seq 1 20); do
+          if tailscale ip --4 >/dev/null 2>&1; then
+            debug "Tailscale is ready"
+            return 0
+          fi
+          debug "Waiting for Tailscale... ($i/20)"
+          sleep 1
+        done
+
+        printf 'ERROR: Tailscale not ready after 20 attempts\n' >&2
+        exit 1
+      }
+
+      fetch_tailscale_status() {
+        if ! tailscale status --json > "$STATUS_JSON" 2>/dev/null; then
+          printf 'ERROR: Failed to fetch Tailscale status\n' >&2
           exit 1
-        }
-      elif [ -z "$(cat "$TMP_USERS")" ]; then
-        cat "$TMP_TAGS" > "$TMP_FINAL"
-      elif [ -z "$(cat "$TMP_TAGS")" ]; then
-        cat "$TMP_USERS" > "$TMP_FINAL"
-      else
-        comm -12 <(sort "$TMP_USERS") <(sort "$TMP_TAGS") > "$TMP_FINAL"
-      fi
-      debug "Combined results: $(cat "$TMP_FINAL")"
-    }
+        fi
 
-    update_hosts_file() {
-      SELF_IP=$(${pkgs.tailscale}/bin/tailscale ip --4 2>/dev/null || echo "")
-      SELF_HOST=${config.networking.hostName}${cfg.suffix}
+        if [ ! -s "$STATUS_JSON" ]; then
+          printf 'ERROR: Tailscale status JSON is empty\n' >&2
+          exit 1
+        fi
 
-      if [ -n "$SELF_IP" ] && [ -s "$TMP_FINAL" ]; then
+        debug "Raw JSON saved to $STATUS_JSON"
+      }
+
+      filter_by_users() {
+        if [ "$USERS_JSON" = "[]" ]; then
+          : > "$TMP_USERS"
+          return
+        fi
+
+        jq -r --argjson selectedUsers "$USERS_JSON" --arg suffix "$SUFFIX" '
+          .User as $userMap
+          | .Peer
+          | to_entries[]
+          | .value as $peer
+          | ($userMap[($peer.UserID | tostring)].LoginName // empty) as $login
+          | select($selectedUsers | index($login))
+          | select(($peer.TailscaleIPs // []) | length > 0)
+          | "\($peer.TailscaleIPs[0]) \($peer.HostName)\($suffix)"
+        ' "$STATUS_JSON" > "$TMP_USERS"
+
+        debug "Users filter generated $(wc -l < "$TMP_USERS") hosts"
+      }
+
+      filter_by_tags() {
+        if [ "$TAGS_JSON" = "[]" ]; then
+          : > "$TMP_TAGS"
+          return
+        fi
+
+        jq -r --argjson selectedTags "$TAGS_JSON" --arg suffix "$SUFFIX" '
+          .Peer
+          | to_entries[]
+          | .value as $peer
+          | select(($peer.Tags // []) | any(. as $tag | $selectedTags | index($tag)))
+          | select(($peer.TailscaleIPs // []) | length > 0)
+          | "\($peer.TailscaleIPs[0]) \($peer.HostName)\($suffix)"
+        ' "$STATUS_JSON" > "$TMP_TAGS"
+
+        debug "Tags filter generated $(wc -l < "$TMP_TAGS") hosts"
+      }
+
+      combine_results() {
+        if [ ! -s "$TMP_USERS" ] && [ ! -s "$TMP_TAGS" ]; then
+          jq -r --arg suffix "$SUFFIX" '
+            .Peer
+            | to_entries[]
+            | .value as $peer
+            | select(($peer.TailscaleIPs // []) | length > 0)
+            | "\($peer.TailscaleIPs[0]) \($peer.HostName)\($suffix)"
+          ' "$STATUS_JSON" | sort -u > "$TMP_FINAL"
+        elif [ ! -s "$TMP_USERS" ]; then
+          sort -u "$TMP_TAGS" > "$TMP_FINAL"
+        elif [ ! -s "$TMP_TAGS" ]; then
+          sort -u "$TMP_USERS" > "$TMP_FINAL"
+        else
+          comm -12 <(sort -u "$TMP_USERS") <(sort -u "$TMP_TAGS") > "$TMP_FINAL"
+        fi
+
+        debug "Combined result has $(wc -l < "$TMP_FINAL") hosts"
+      }
+
+      update_hosts_file() {
+        local selfIp
+        selfIp=""
+        while IFS= read -r line; do
+          selfIp="$line"
+          break
+        done < <(tailscale ip --4 2>/dev/null || true)
+
+        if [ -z "$selfIp" ]; then
+          printf 'ERROR: No Tailscale IP available, cannot update hosts\n' >&2
+          exit 1
+        fi
+
         {
-          echo "# Hosts managed by NixOS configuration"
+          printf '# Hosts managed by NixOS configuration\n'
           cat "$BASE_HOSTS"
-          echo "# Tailscale hosts"
-          echo "$SELF_IP $SELF_HOST # Local Tailscale host"
-          cat "$TMP_FINAL"
+          printf '# Tailscale hosts\n'
+          printf '%s %s # Local Tailscale host\n' "$selfIp" "$SELF_HOST"
+          if [ -s "$TMP_FINAL" ]; then
+            cat "$TMP_FINAL"
+          fi
         } > "$FINAL_HOSTS.tmp"
-        mv "$FINAL_HOSTS.tmp" "$FINAL_HOSTS"
-        chmod 644 "$FINAL_HOSTS"
-        debug "Updated $FINAL_HOSTS with Tailscale entries including self ($SELF_IP $SELF_HOST)"
-      elif [ -n "$SELF_IP" ]; then
-        {
-          echo "# Hosts managed by NixOS configuration"
-          cat "$BASE_HOSTS"
-          echo "# Tailscale hosts"
-          echo "$SELF_IP $SELF_HOST # Local Tailscale host"
-        } > "$FINAL_HOSTS.tmp"
-        mv "$FINAL_HOSTS.tmp" "$FINAL_HOSTS"
-        chmod 644 "$FINAL_HOSTS"
-        debug "Updated $FINAL_HOSTS with only self ($SELF_IP $SELF_HOST)"
-      else
-        echo "ERROR: No Tailscale IP available, cannot update hosts" >&2
-        exit 1
-      fi
-    }
 
-    # Main execution
-    trap cleanup EXIT
-    find /tmp -name "tailscale-status-*.json" -type f -mmin +60 -exec rm -f {} \;
-    debug "Cleaned up old JSON files"
-    wait_for_tailscale
-    fetch_tailscale_status
-    filter_by_users
-    filter_by_tags
-    combine_results
-    update_hosts_file
-  '';
+        mv "$FINAL_HOSTS.tmp" "$FINAL_HOSTS"
+        chmod 0644 "$FINAL_HOSTS"
+        debug "Updated $FINAL_HOSTS"
+      }
+
+      trap cleanup EXIT
+      wait_for_tailscale
+      fetch_tailscale_status
+      filter_by_users
+      filter_by_tags
+      combine_results
+      update_hosts_file
+    '';
+  };
 
 in
 {
   options.tailscaleHosts = {
+    enable = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Whether to manage /etc/hosts with Tailscale peers.";
+    };
+
     users = lib.mkOption {
       type = with lib.types; listOf str;
       default = [ ];
@@ -205,12 +211,7 @@ in
     };
   };
 
-  config = {
-    environment.systemPackages = [
-      pkgs.tailscale
-      pkgs.jq
-    ];
-
+  config = lib.mkIf cfg.enable {
     systemd.timers.tailscale-hosts = {
       description = "Timer for updating Tailscale hosts";
       wantedBy = [ "timers.target" ];
@@ -229,7 +230,10 @@ in
             "tailscaled.service"
             "network-online.target"
           ];
-          wants = [ "tailscaled.service" ];
+          wants = [
+            "tailscaled.service"
+            "network-online.target"
+          ];
           wantedBy = [ "multi-user.target" ];
           unitConfig = {
             StartLimitIntervalSec = "300";
@@ -237,9 +241,7 @@ in
           };
           serviceConfig = {
             Type = "oneshot";
-            ExecStart = "${updateTailscaleHosts}";
-            Restart = "on-failure";
-            RestartSec = "5s";
+            ExecStart = "${updateTailscaleHosts}/bin/update-tailscale-hosts";
             TimeoutStopSec = "5s";
           };
         };
