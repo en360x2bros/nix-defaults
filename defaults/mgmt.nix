@@ -19,10 +19,11 @@ in
 
   # Define the option `mgmt.passwordFile`
   options.mgmt.passwordFile = mkOption {
-    type = types.path;
+    type = types.nullOr types.path;
+    default = null;
     description = ''
-      Path to the encrypted password file for the mgmt user. 
-      This option must be set when using the mgmt module.
+      Path to the encrypted password file for the mgmt user.
+      If null, no password file will be set.
     '';
   };
 
@@ -37,7 +38,7 @@ in
       home = "/home/mgmt";
       description = "mgmt User";
       openssh.authorizedKeys.keys = config.mgmt.sshKeys;
-      hashedPasswordFile = config.mgmt.passwordFile;
+      hashedPasswordFile = lib.mkIf (config.mgmt.passwordFile != null) config.mgmt.passwordFile;
       extraGroups = [ "wheel" ];
       shell = pkgs.bash;
     };
