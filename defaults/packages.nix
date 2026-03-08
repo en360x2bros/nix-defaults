@@ -39,7 +39,6 @@
       ookla-speedtest
       iperf
       fio
-      geekbench
       tcpdump
     ];
   };
