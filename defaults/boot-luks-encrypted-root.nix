@@ -1,20 +1,22 @@
+{ lib, pkgs, ... }:
 {
-  lib,
-  pkgs,
-  config,
-  ...
-}:
-{
-  config = {
-    boot.initrd.preDeviceCommands = lib.mkDefault ''
-      echo "#!/bin/sh" > /bin/askpass-luks
-      echo "echo \"Press CTRL+C to enter shell...\"" >> /bin/askpass-luks
-      echo "trap '/bin/ash; exit' INT" >> /bin/askpass-luks
-      echo "sleep 3" >> /bin/askpass-luks
-      echo "trap - INT" >> /bin/askpass-luks
-      echo "/bin/cryptsetup-askpass" >> /bin/askpass-luks
+  boot.initrd.systemd.services.askpass-luks-script = {
+    description = "Create /bin/askpass-luks for SSH unlock shell";
+    wantedBy = [ "initrd.target" ];
+    before = [ "cryptsetup.target" ];
+    serviceConfig.Type = "oneshot";
+    script = ''
+      cat > /bin/askpass-luks <<'EOF'
+      #!/bin/sh
+      echo "Press CTRL+C to enter shell..."
+      trap '/bin/sh; exit' INT
+      sleep 3
+      trap - INT
+      exec /bin/systemd-tty-ask-password-agent --watch
+      EOF
       chmod +x /bin/askpass-luks
     '';
-    boot.initrd.network.ssh.shell = "/bin/askpass-luks";
   };
+
+  boot.initrd.network.ssh.shell = "/bin/askpass-luks";
 }

@@ -11,13 +11,9 @@
     boot.zfs.package = lib.mkDefault pkgs.zfs_2_3;
     boot.zfs.requestEncryptionCredentials = lib.mkDefault true;
 
-
     boot.initrd.systemd.services.initrd-zfs-askpass = lib.mkDefault {
       description = "Prepare ZFS askpass helper for initrd SSH unlock";
       wantedBy = [ "initrd.target" ];
-      before = [ "sshd.service" ];
-      after = [ "systemd-udev-settle.service" ];
-      wants = [ "systemd-udev-settle.service" ];
       unitConfig.DefaultDependencies = "no";
 
       serviceConfig = {
@@ -27,17 +23,15 @@
       };
 
       script = ''
-        zpool import -a || true
-
         cat > /bin/askpass-zfs <<'EOF'
         #!/bin/sh
         echo "Press CTRL+C to enter shell..."
-        trap '/bin/bash; exit' INT
+        trap '/bin/sh; exit' INT
         sleep 3
         trap - INT
-        zfs load-key -a
 
-        systemctl restart zfs-import-zroot.service || true
+        # Show and process systemd password prompts (incl. ZFS key requests)
+        exec /bin/systemd-tty-ask-password-agent --watch
         EOF
         chmod +x /bin/askpass-zfs
       '';
