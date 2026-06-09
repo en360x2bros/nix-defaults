@@ -8,7 +8,7 @@
   config = {
     boot.kernelPackages = pkgs.linuxPackagesFor pkgs.linux_6_12;
     boot.supportedFilesystems.zfs = lib.mkDefault true;
-    boot.zfs.package = lib.mkDefault pkgs.zfs_2_3;
+    boot.zfs.package = lib.mkDefault pkgs.zfs_2_4;
     boot.zfs.requestEncryptionCredentials = lib.mkDefault true;
 
     boot.initrd.systemd.services.initrd-zfs-askpass = lib.mkDefault {
