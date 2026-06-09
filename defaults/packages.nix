@@ -40,6 +40,7 @@
       iperf
       fio
       tcpdump
+      croc
     ];
   };
 }
