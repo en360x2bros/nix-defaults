@@ -70,7 +70,20 @@
       mode = "0644";
     };
 
-    services.openssh.settings.PrintMotd = true;
+    # No reliable server-side MOTD on this setup: services.openssh PrintMotd is
+    # a no-op under UsePAM=yes, and sshd does not relay pam_motd's session
+    # output to the client on this OpenSSH build. So print it from the login
+    # shell, but gated cleanly:
+    #   - $SSH_CONNECTION  → only on real SSH logins, never on su -/sudo su -
+    #   - $_MOTD_SHOWN     → only once, even if login init is sourced twice
+    #   - TERM_PROGRAM≠Warp→ Warp renders the MOTD itself; avoid double display
+    programs.bash.loginShellInit = ''
+      if [ -z "$_MOTD_SHOWN" ] && [ -n "$SSH_CONNECTION" ] && [[ $- == *i* ]] \
+         && [ "$TERM_PROGRAM" != "WarpTerminal" ] && [ -r /etc/motd ]; then
+        cat /etc/motd
+        export _MOTD_SHOWN=1
+      fi
+    '';
 
   };
 }
