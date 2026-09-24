@@ -44,18 +44,41 @@ let
         fi
       }
 
+      # Returns 0 once tailscaled answers, 1 after $1 seconds. Callers decide
+      # what a timeout means (cache fallback vs. hard error) — the old version
+      # exited hard after 20s, which on cold boot turned into a systemd
+      # start-limit and took incus down with it (han-inc02, 2026-09-24).
       wait_for_tailscale() {
-        for i in $(seq 1 20); do
+        local attempts="$1"
+        for i in $(seq 1 "$attempts"); do
           if tailscale ip --4 >/dev/null 2>&1; then
             debug "Tailscale is ready"
             return 0
           fi
-          debug "Waiting for Tailscale... ($i/20)"
+          debug "Waiting for Tailscale... ($i/$attempts)"
           sleep 1
         done
+        return 1
+      }
 
-        printf 'ERROR: Tailscale not ready after 20 attempts\n' >&2
-        exit 1
+      # Last known good ".ts" section (self line + peers). Rendering it at
+      # boot BEFORE tailscaled has network turns "name does not resolve"
+      # (fatal, crash-loops incusd/containers into systemd limits) into
+      # "host briefly unreachable" (transient, every consumer retries).
+      # Tailnet IPs are pinned in Headscale, and the 5-minute timer plus the
+      # next live run repair any drift.
+      CACHE_FILE="/var/lib/tailscale-hosts/peers"
+
+      render_from_cache() {
+        {
+          printf '# Hosts managed by NixOS configuration\n'
+          cat "$BASE_HOSTS"
+          printf '# Tailscale hosts (cached, tailscaled not ready yet)\n'
+          cat "$CACHE_FILE"
+        } > "$FINAL_HOSTS.tmp"
+        mv "$FINAL_HOSTS.tmp" "$FINAL_HOSTS"
+        chmod 0644 "$FINAL_HOSTS"
+        debug "Rendered $FINAL_HOSTS from cache"
       }
 
       fetch_tailscale_status() {
@@ -156,15 +179,44 @@ let
         mv "$FINAL_HOSTS.tmp" "$FINAL_HOSTS"
         chmod 0644 "$FINAL_HOSTS"
         debug "Updated $FINAL_HOSTS"
+
+        # Refresh the boot cache only after a fully successful live run —
+        # atomically, so a crash never leaves a truncated cache behind.
+        {
+          printf '%s %s # Local Tailscale host\n' "$selfIp" "$SELF_HOST"
+          if [ -s "$TMP_FINAL" ]; then
+            cat "$TMP_FINAL"
+          fi
+        } > "$CACHE_FILE.tmp"
+        mv "$CACHE_FILE.tmp" "$CACHE_FILE"
+        debug "Updated $CACHE_FILE"
+      }
+
+      live_run() {
+        fetch_tailscale_status
+        filter_by_users
+        filter_by_tags
+        combine_results
+        update_hosts_file
       }
 
       trap cleanup EXIT
-      wait_for_tailscale
-      fetch_tailscale_status
-      filter_by_users
-      filter_by_tags
-      combine_results
-      update_hosts_file
+      if wait_for_tailscale 15; then
+        live_run
+      elif [ -s "$CACHE_FILE" ]; then
+        printf 'WARN: tailscaled not ready after 15s — rendering last known peers from cache\n' >&2
+        render_from_cache
+      else
+        # First boot ever (no cache): nothing sensible to render, so give
+        # tailscaled a real cold-boot window before failing.
+        printf 'WARN: tailscaled not ready and no cache — extending wait\n' >&2
+        if wait_for_tailscale 105; then
+          live_run
+        else
+          printf 'ERROR: Tailscale not ready after 120s and no cache available\n' >&2
+          exit 1
+        fi
+      fi
     '';
   };
 
@@ -243,6 +295,9 @@ in
             Type = "oneshot";
             ExecStart = "${updateTailscaleHosts}/bin/update-tailscale-hosts";
             TimeoutStopSec = "5s";
+            # Peer cache for the boot-time fallback path (render before
+            # tailscaled has network). Survives reboots by design.
+            StateDirectory = "tailscale-hosts";
           };
         };
       }
@@ -252,7 +307,11 @@ in
             "tailscaled.service"
             "tailscale-hosts.service"
           ];
-          requires = [
+          # wants, not requires (2026-09-24, han-inc02): with requires a
+          # failed tailscale-hosts run took incus down permanently (start
+          # limits on both sides). The cache path above makes the unit
+          # succeed in milliseconds at boot, so the ordering is cheap.
+          wants = [
             "tailscaled.service"
             "tailscale-hosts.service"
           ];
@@ -261,5 +320,16 @@ in
           };
         };
       });
+
+    # Socket activation bypasses the ordering on incus.service: on cold boot
+    # incusd got spawned through incus.socket BEFORE /etc/hosts had the .ts
+    # entries, crash-looped on unresolvable cluster member names and hit the
+    # socket trigger limit (han-inc02, 2026-09-24). Order the socket itself.
+    systemd.sockets = lib.optionalAttrs config.virtualisation.incus.enable {
+      incus = {
+        after = [ "tailscale-hosts.service" ];
+        wants = [ "tailscale-hosts.service" ];
+      };
+    };
   };
 }
