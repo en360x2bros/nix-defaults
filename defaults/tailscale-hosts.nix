@@ -300,6 +300,42 @@ in
 
     systemd.services =
       {
+        # Early cache-only render, BEFORE sockets.target (bootCache only):
+        # DefaultDependencies=no, needs no network, silently skipped when no
+        # cache exists yet. Exists so incus.socket can order behind it
+        # cycle-free — ordering behind the late full service created a
+        # systemd ordering cycle via basic.target (inc04, 2026-09-24) that
+        # systemd broke by deleting sockets.target from the transaction.
+        tailscale-hosts-boot = lib.mkIf cfg.bootCache {
+          description = "Render /etc/hosts from cached Tailscale peers (early boot)";
+          unitConfig = {
+            DefaultDependencies = false;
+            ConditionPathExists = "/var/lib/tailscale-hosts/peers";
+          };
+          after = [ "local-fs.target" ];
+          wants = [ "local-fs.target" ];
+          before = [
+            "sockets.target"
+            "basic.target"
+          ];
+          wantedBy = [ "sysinit.target" ];
+          path = [ pkgs.coreutils ];
+          serviceConfig = {
+            Type = "oneshot";
+            ExecStart = pkgs.writeShellScript "tailscale-hosts-boot" ''
+              set -eu
+              {
+                printf '# Hosts managed by NixOS configuration\n'
+                cat /etc/static/hosts
+                printf '# Tailscale hosts (boot cache)\n'
+                cat /var/lib/tailscale-hosts/peers
+              } > /etc/hosts.tmp
+              mv /etc/hosts.tmp /etc/hosts
+              chmod 0644 /etc/hosts
+            '';
+          };
+        };
+
         tailscale-hosts = {
           enable = true;
           description = "Update /etc/hosts with Tailscale nodes";
@@ -351,11 +387,12 @@ in
     # Socket activation bypasses the ordering on incus.service: on cold boot
     # incusd got spawned through incus.socket BEFORE /etc/hosts had the .ts
     # entries, crash-looped on unresolvable cluster member names and hit the
-    # socket trigger limit (han-inc02, 2026-09-24). Order the socket itself.
-    systemd.sockets = lib.optionalAttrs config.virtualisation.incus.enable {
+    # socket trigger limit (han-inc02, 2026-09-24). Order the socket behind
+    # the EARLY cache render (cycle-free), not behind the late full service.
+    systemd.sockets = lib.optionalAttrs (config.virtualisation.incus.enable && cfg.bootCache) {
       incus = {
-        after = [ "tailscale-hosts.service" ];
-        wants = [ "tailscale-hosts.service" ];
+        after = [ "tailscale-hosts-boot.service" ];
+        wants = [ "tailscale-hosts-boot.service" ];
       };
     };
   };
