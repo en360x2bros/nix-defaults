@@ -19,6 +19,7 @@ let
       set -euo pipefail
 
       DEBUG=${if cfg.debug then "true" else "false"}
+      CACHE_ENABLED=${if cfg.bootCache then "true" else "false"}
       BASE_HOSTS="/etc/static/hosts"
       FINAL_HOSTS="/etc/hosts"
       SUFFIX='${cfg.suffix}'
@@ -182,14 +183,16 @@ let
 
         # Refresh the boot cache only after a fully successful live run —
         # atomically, so a crash never leaves a truncated cache behind.
-        {
-          printf '%s %s # Local Tailscale host\n' "$selfIp" "$SELF_HOST"
-          if [ -s "$TMP_FINAL" ]; then
-            cat "$TMP_FINAL"
-          fi
-        } > "$CACHE_FILE.tmp"
-        mv "$CACHE_FILE.tmp" "$CACHE_FILE"
-        debug "Updated $CACHE_FILE"
+        if [ "$CACHE_ENABLED" = "true" ]; then
+          {
+            printf '%s %s # Local Tailscale host\n' "$selfIp" "$SELF_HOST"
+            if [ -s "$TMP_FINAL" ]; then
+              cat "$TMP_FINAL"
+            fi
+          } > "$CACHE_FILE.tmp"
+          mv "$CACHE_FILE.tmp" "$CACHE_FILE"
+          debug "Updated $CACHE_FILE"
+        fi
       }
 
       live_run() {
@@ -201,7 +204,15 @@ let
       }
 
       trap cleanup EXIT
-      if wait_for_tailscale 15; then
+      if [ "$CACHE_ENABLED" != "true" ]; then
+        # Legacy behavior (bootCache = false): identical to the pre-cache
+        # module — 20s hard wait, then error out.
+        if ! wait_for_tailscale 20; then
+          printf 'ERROR: Tailscale not ready after 20 attempts\n' >&2
+          exit 1
+        fi
+        live_run
+      elif wait_for_tailscale 15; then
         live_run
       elif [ -s "$CACHE_FILE" ]; then
         printf 'WARN: tailscaled not ready after 15s — rendering last known peers from cache\n' >&2
@@ -253,6 +264,20 @@ in
       description = "Enable debug output and retain the last JSON file.";
     };
 
+    bootCache = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Persist the last known peer list under /var/lib/tailscale-hosts and
+        render it into /etc/hosts at boot when tailscaled is not ready yet
+        (15s grace). Turns fatal "hostname does not resolve" failures of
+        early-starting consumers (incus, containers) into transient
+        "host not reachable yet" conditions that resolve themselves once
+        the VPN is up. Default false for backward compatibility: without it
+        the unit behaves exactly like before (20s hard wait, then failure).
+      '';
+    };
+
     timerInterval = lib.mkOption {
       type = lib.types.str;
       default = "*:0/5";
@@ -295,8 +320,10 @@ in
             Type = "oneshot";
             ExecStart = "${updateTailscaleHosts}/bin/update-tailscale-hosts";
             TimeoutStopSec = "5s";
-            # Peer cache for the boot-time fallback path (render before
-            # tailscaled has network). Survives reboots by design.
+          }
+          # Peer cache for the boot-time fallback path (render before
+          # tailscaled has network). Survives reboots by design.
+          // lib.optionalAttrs cfg.bootCache {
             StateDirectory = "tailscale-hosts";
           };
         };
